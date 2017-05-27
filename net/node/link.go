@@ -7,7 +7,6 @@ import (
 	. "DNA/net/protocol"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
