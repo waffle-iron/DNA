@@ -206,7 +206,7 @@ func (cp *ConsensusPayload) DeserializeUnsigned(r io.Reader) error {
 	}
 
 	cp.Data, err = serialization.ReadVarBytes(r)
-	log.Info("The consensus payload data len is ", len(cp.Data))
+	//log.Info("The consensus payload data len is ", len(cp.Data))
 	if err != nil {
 		log.Info("consensus item Data Deserialize failed.")
 		return errors.New("consensus item Data Deserialize failed.")

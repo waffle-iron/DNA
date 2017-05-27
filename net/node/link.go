@@ -1,8 +1,8 @@
 package node
 
 import (
-	"DNA/common/log"
 	. "DNA/common/config"
+	"DNA/common/log"
 	. "DNA/net/message"
 	. "DNA/net/protocol"
 	"crypto/tls"
@@ -279,9 +279,9 @@ func TLSDial(nodeAddr string) (net.Conn, error) {
 }
 
 func (node node) Tx(buf []byte) {
-	log.Debug()
-	str := hex.EncodeToString(buf)
-	log.Debug(fmt.Sprintf("TX buf length: %d\n%s", len(buf), str))
+	//log.Debug()
+	//str := hex.EncodeToString(buf)
+	//log.Debug(fmt.Sprintf("TX buf length: %d\n%s", len(buf), str))
 
 	_, err := node.conn.Write(buf)
 	if err != nil {

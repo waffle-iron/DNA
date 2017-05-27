@@ -102,6 +102,13 @@ func (ds *DbftService) CheckExpectedView(viewNumber byte) {
 		log.Debug("[CheckExpectedView] Begin InitializeConsensus.")
 		go ds.InitializeConsensus(viewNumber)
 		//ds.InitializeConsensus(viewNumber)
+	} else {
+		log.Debug("CheckExpectedView count=", count)
+		for k, expectedViewNumber := range ds.context.ExpectedView {
+			if expectedViewNumber == viewNumber {
+				log.Debug("index=", k, "ExpectedView=", expectedViewNumber, "ds.context.ViewNumber=", ds.context.ViewNumber)
+			}
+		}
 	}
 }
 
