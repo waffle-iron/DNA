@@ -96,10 +96,12 @@ func (ds *DbftService) CheckExpectedView(viewNumber byte) {
 			count++
 		}
 	}
-
+	log.Info(fmt.Sprintf("Request change view: height=%d View=%d nv=%d state=%s", ds.context.Height,
+		ds.context.ViewNumber, ds.context.ExpectedView[ds.context.BookKeeperIndex], ds.context.GetStateDetail()))
+	log.Trace("=================> count=", count)
 	M := ds.context.M()
 	if count >= M {
-		log.Debug("[CheckExpectedView] Begin InitializeConsensus.")
+		log.Trace("[CheckExpectedView] Begin InitializeConsensus.")
 		go ds.InitializeConsensus(viewNumber)
 		//ds.InitializeConsensus(viewNumber)
 	}

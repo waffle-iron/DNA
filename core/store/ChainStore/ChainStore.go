@@ -813,7 +813,7 @@ func (bd *ChainStore) addHeader(header *Header) {
 	// PUT VALUE
 	bd.st.BatchPut(currentHeaderKey.Bytes(), currentHeader.Bytes())
 
-	log.Trace("[addHeader]: finish, header height:", header.Blockdata.Height)
+	log.Debug("[addHeader]: finish, header height:", header.Blockdata.Height)
 }
 
 func (bd *ChainStore) persistBlocks(ledger *Ledger) {

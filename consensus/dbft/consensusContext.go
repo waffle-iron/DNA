@@ -70,6 +70,9 @@ func SliceNotEqual(a, b []*crypto.PubKey) bool {
 
 func (cxt *ConsensusContext) M() int {
 	log.Debug()
+	for k, v := range cxt.BookKeepers {
+		log.Trace("index=", k, "cxt.BookKeepers=", v)
+	}
 	return len(cxt.BookKeepers) - (len(cxt.BookKeepers)-1)/3
 }
 
