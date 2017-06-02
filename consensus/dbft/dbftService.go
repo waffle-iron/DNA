@@ -421,6 +421,7 @@ func (ds *DbftService) PrepareRequestReceived(payload *msg.ConsensusPayload, mes
 		log.Error("[DbftService] GetBookKeeperAddres failed")
 		return
 	}
+	log.Debug("*****************bookKeeperAddress=", bookKeeperAddress, "ds.context.NextBookKeeper=", ds.context.NextBookKeeper)
 	if bookKeeperAddress == ds.context.NextBookKeeper {
 		log.Info("send prepare response")
 		ds.context.State |= SignatureSent

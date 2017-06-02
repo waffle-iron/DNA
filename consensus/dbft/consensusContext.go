@@ -97,6 +97,7 @@ func (cxt *ConsensusContext) ChangeView(viewNum byte) {
 		cxt.Signatures = make([][]byte, len(cxt.BookKeepers))
 	}
 	cxt.header = nil
+	log.Debug()
 }
 
 func (cxt *ConsensusContext) MakeChangeView() *msg.ConsensusPayload {
