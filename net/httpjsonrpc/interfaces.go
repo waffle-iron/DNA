@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"time"
 )
 
 const (
@@ -466,6 +467,34 @@ func sendSampleTransaction(params []interface{}) map[string]interface{} {
 			VerifyAndSendTx(regTx)
 		}
 		return DnaRpc(fmt.Sprintf("%d transaction(s) was sent", num))
+	case "full":
+		regTx := NewRegTx(ToHexString(rbuf), 0, admin, issuer)
+		regHash := regTx.Hash()
+		SignTx(admin, regTx)
+		VerifyAndSendTx(regTx)
+
+		// wait for the block
+		time.Sleep(5 * time.Second)
+		issueTx := NewIssueTx(admin, regHash)
+		issueHash := issueTx.Hash()
+		SignTx(admin, issueTx)
+		VerifyAndSendTx(issueTx)
+
+		// wait for the block
+		time.Sleep(5 * time.Second)
+		transferTx := NewTransferTx(regHash, issueHash, issuer)
+		transferHash := transferTx.Hash()
+		SignTx(admin, transferTx)
+		VerifyAndSendTx(transferTx)
+
+		// wait for the block
+		time.Sleep(5 * time.Second)
+		NewRecordTx := NewRecordTx(ToHexString(rbuf))
+		recordHash := NewRecordTx.Hash()
+		SignTx(admin, NewRecordTx)
+		VerifyAndSendTx(NewRecordTx)
+
+		return DnaRpc(fmt.Sprintf("regist: %x, issue: %x, transfer: %x, record: %x", regHash, issueHash, transferHash, recordHash))
 	default:
 		return DnaRpc("Invalid transacion type")
 	}
