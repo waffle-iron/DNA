@@ -39,7 +39,7 @@ func VerifyTransaction(Tx *tx.Transaction) error {
 
 // VerifyTransactionWithTxPool verifys a transaction with current transaction pool in memory
 func VerifyTransactionWithTxPool(Tx *tx.Transaction, TxPool []*tx.Transaction) error {
-	if err := CheckDuplicateInputInTxPool(Tx, TxPool); err != nil {
+	if err := CheckDuplicateWithTxPool(Tx, TxPool); err != nil {
 		return err
 	}
 
@@ -87,18 +87,6 @@ func VerifyTransactionWithTxPool(Tx *tx.Transaction, TxPool []*tx.Transaction) e
 				return errors.New("[VerifyTransaction], Amount check error.")
 			}
 		}
-	case tx.TransferAsset:
-		results, err := Tx.GetTransactionResults()
-		if err != nil {
-			return err
-		}
-		for k, v := range results {
-			if v != 0 {
-				log.Debug(fmt.Sprintf("AssetID %x in Transfer transactions %x , Input/output UTXO not equal.", k, Tx.Hash()))
-				return errors.New(fmt.Sprintf("AssetID %x in Transfer transactions %x , Input/output UTXO not equal.", k, Tx.Hash()))
-			}
-		}
-	default:
 	}
 	return nil
 }
@@ -111,22 +99,7 @@ func VerifyTransactionWithLedger(Tx *tx.Transaction, ledger *ledger.Ledger) erro
 	return nil
 }
 
-func CheckMemPool(tx *tx.Transaction, TxPool []*tx.Transaction) error {
-	if len(tx.UTXOInputs) == 0 {
-		return nil
-	}
-	for _, poolTx := range TxPool {
-		for _, poolInput := range poolTx.UTXOInputs {
-			for _, txInput := range tx.UTXOInputs {
-				if poolInput.Equals(txInput) {
-					return errors.New("There is duplicated Tx Input with Tx Pool.")
-				}
-			}
-		}
-	}
-	return nil
-}
-
+//validate the transaction of duplicate UTXO input
 func CheckDuplicateInput(tx *tx.Transaction) error {
 	if len(tx.UTXOInputs) == 0 {
 		return nil
@@ -141,16 +114,26 @@ func CheckDuplicateInput(tx *tx.Transaction) error {
 	return nil
 }
 
-func CheckDuplicateInputInTxPool(tx *tx.Transaction, txPool []*tx.Transaction) error {
+func CheckDuplicateWithTxPool(tx *tx.Transaction, txPool []*tx.Transaction) error {
 	// TODO: Optimize performance with incremental checking and deal with the duplicated tx
+	//1.check duplicate transaction hash.
+	//2.check utxo double spend.
 	var txInputs, txPoolInputs []string
 	for _, t := range tx.UTXOInputs {
 		txInputs = append(txInputs, t.ToString())
 	}
+	count :=0
 	for _, t := range txPool {
-		for _, u := range t.UTXOInputs {
-			txPoolInputs = append(txPoolInputs, u.ToString())
+		if t.Hash() == tx.Hash(){
+			count++
+		}else{
+			for _, u := range t.UTXOInputs {
+				txPoolInputs = append(txPoolInputs, u.ToString())
+			}
 		}
+	}
+	if count >1{
+		return errors.New("Duplicated transaction hash found in tx pool")
 	}
 	for _, i := range txInputs {
 		for _, j := range txPoolInputs {
@@ -167,7 +150,12 @@ func IsDoubleSpend(tx *tx.Transaction, ledger *ledger.Ledger) bool {
 }
 
 func CheckAssetPrecision(Tx *tx.Transaction) error {
-	for k, outputs := range Tx.AssetOutputs {
+	assetOutputs :=     make(map[common.Uint256][]*tx.TxOutput,len(Tx.Outputs))
+
+	for _, v := range Tx.Outputs {
+		assetOutputs[v.AssetID] = append(assetOutputs[v.AssetID],v)
+	}
+	for k, outputs := range assetOutputs {
 		asset, err := ledger.DefaultLedger.GetAsset(k)
 		if err != nil {
 			return errors.New("The asset not exist in local blockchain.")
@@ -183,13 +171,14 @@ func CheckAssetPrecision(Tx *tx.Transaction) error {
 }
 
 func CheckTransactionBalance(Tx *tx.Transaction) error {
-	if len(Tx.AssetInputAmount) != len(Tx.AssetOutputAmount) {
-		return errors.New("The number of asset is not same between inputs and outputs.")
+	results, err := Tx.GetTransactionResults()
+	if err != nil {
+		return err
 	}
-
-	for k, v := range Tx.AssetInputAmount {
-		if v != Tx.AssetOutputAmount[k] {
-			return errors.New("The amount of asset is not same between inputs and outputs.")
+	for k, v := range results {
+		if v != 0 {
+			log.Debug(fmt.Sprintf("AssetID %x in Transfer transactions %x , Input/output UTXO not equal.", k, Tx.Hash()))
+			return errors.New(fmt.Sprintf("AssetID %x in Transfer transactions %x , Input/output UTXO not equal.", k, Tx.Hash()))
 		}
 	}
 	return nil

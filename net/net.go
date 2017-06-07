@@ -19,6 +19,7 @@ type Neter interface {
 	CleanSubmittedTransactions(block *ledger.Block) error
 	GetNeighborNoder() []protocol.Noder
 	Tx(buf []byte)
+	AppendTxnPool(*transaction.Transaction) bool
 }
 
 func StartProtocol(pubKey *crypto.PubKey, nodeType int) (Neter, protocol.Noder) {

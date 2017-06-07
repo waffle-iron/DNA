@@ -8,6 +8,7 @@ import (
 	"DNA/errors"
 	msg "DNA/net/message"
 	. "DNA/net/protocol"
+	va "DNA/core/validation"
 	"fmt"
 	"sync"
 )
@@ -22,17 +23,28 @@ func (txnPool *TXNPool) GetTransaction(hash common.Uint256) *transaction.Transac
 	txnPool.RLock()
 	defer txnPool.RUnlock()
 	txn := txnPool.list[hash]
-	// Fixme need lock
 	return txn
 }
 
 func (txnPool *TXNPool) AppendTxnPool(txn *transaction.Transaction) bool {
-	hash := txn.Hash()
-	// TODO: Call VerifyTransactionWithTxPool to verify tx
+	//verify transaction with Concurrency
+	if err := va.VerifyTransaction(txn); err != nil {
+		log.Warn(fmt.Sprintf("Transaction hash=%x, verification failed with error=%s\n"),txn.Hash(),err)
+		return false
+	}
+	if err := va.VerifyTransactionWithLedger(txn, ledger.DefaultLedger); err != nil {
+		log.Warn(fmt.Sprintf("Transaction hash=%x, verification failed with ledger, error=%s\n"),txn.Hash(),err)
+		return false
+	}
+
+	//verify transaction by pool with lock
 	txnPool.Lock()
-	txnPool.list[hash] = txn
-	txnPool.txnCnt++
-	txnPool.Unlock()
+	defer txnPool.Unlock()
+	if err := va.VerifyTransactionWithTxPool(txn,txnPool.getlist()); err != nil {
+		log.Warn(fmt.Sprintf("Transaction hash=%x, verification failed with TxPool, error=%s\n"),txn.Hash(),err)
+		return false
+	}
+	txnPool.appendToProcessList(txn)
 	return true
 }
 
@@ -42,10 +54,11 @@ func (txnPool *TXNPool) GetTxnPool(cleanPool bool) map[common.Uint256]*transacti
 	defer txnPool.Unlock()
 
 	list := txnPool.list
+	result :=DeepCopy(list)
 	if cleanPool == true {
 		txnPool.init()
 	}
-	return DeepCopy(list)
+	return result
 }
 
 func DeepCopy(mapIn map[common.Uint256]*transaction.Transaction) map[common.Uint256]*transaction.Transaction {
@@ -57,19 +70,19 @@ func DeepCopy(mapIn map[common.Uint256]*transaction.Transaction) map[common.Uint
 }
 
 // Attention: clean the trasaction Pool with committed transactions.
-func (txnPool *TXNPool) CleanTxnPool(txs []*transaction.Transaction) error {
+func (txnPool *TXNPool) cleanTxnPool(txs []*transaction.Transaction) error {
 	txsNum := len(txs)
-	txInPoolNum := len(txnPool.list)
 	cleaned := 0
 	// skip the first bookkeeping transaction
 	for _, tx := range txs[1:] {
 		delete(txnPool.list, tx.Hash())
 		cleaned++
 	}
+	txnPool.txnCnt = uint64(len(txnPool.list))
 	if txsNum-cleaned != 1 {
 		log.Info(fmt.Sprintf("The Transactions num Unmatched. Expect %d, got %d .\n", txsNum, cleaned))
 	}
-	log.Debug(fmt.Sprintf("[CleanTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txsNum, cleaned, txInPoolNum-cleaned))
+	log.Debug(fmt.Sprintf("[cleanTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txsNum, cleaned, txnPool.txnCnt))
 	return nil
 }
 
@@ -94,9 +107,25 @@ func (txnPool *TXNPool) CleanSubmittedTransactions(block *ledger.Block) error {
 	defer txnPool.Unlock()
 	log.Debug()
 
-	err := txnPool.CleanTxnPool(block.Transactions)
+	err := txnPool.cleanTxnPool(block.Transactions)
 	if err != nil {
 		return errors.NewDetailErr(err, errors.ErrNoCode, "[TxnPool], CleanSubmittedTransactions failed.")
 	}
 	return nil
+}
+
+//Add transaction to ProcessList
+func (txp *TXNPool) appendToProcessList(txs *transaction.Transaction) {
+	txp.list[txs.Hash()] = txs
+	txp.txnCnt++
+}
+
+//Get the transactions as array.
+func (txp *TXNPool) getlist() []*transaction.Transaction {
+	txs := make([]*transaction.Transaction,0,txp.txnCnt)
+	for _, v := range txp.list {
+		txs = append(txs,v)
+	}
+
+	return txs
 }
