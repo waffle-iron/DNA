@@ -25,5 +25,5 @@ func StartProtocol(pubKey *crypto.PubKey, nodeType int) (Neter, protocol.Noder) 
 	net := node.InitNode(pubKey, nodeType)
 	net.ConnectSeeds()
 
-	return net, net
+	return net.LocalNode(), net.LocalNode()
 }

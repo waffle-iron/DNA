@@ -14,11 +14,11 @@ import (
 
 //var lk sync.Mutex
 var point_txnPool string
+var count int
 
 type TXNPool struct {
 	sync.Mutex
 	txnCnt uint64
-	count int
 	list   map[common.Uint256]*transaction.Transaction
 }
 
@@ -29,9 +29,9 @@ func (txnPool *TXNPool) lockme(){
 	//	point_txnPool=point_txnPooln
 	//}
 	txnPool.Lock()
-	txnPool.count++
-	if txnPool.count>1{
-		log.Trace("txnPool.count =",txnPool.count)
+	count++
+	if count>1{
+		log.Trace("txnPool.count =",count)
 	}
 }
 
@@ -42,31 +42,31 @@ func (txnPool *TXNPool) unLockme(){
 	//	point_txnPool=point_txnPooln
 	//}
 	txnPool.Unlock()
-	txnPool.count--
+	count--
 }
 
 func (txnPool *TXNPool) GetTransaction(hash common.Uint256) *transaction.Transaction {
+	txnPool.lockme()
+	defer txnPool.unLockme()
 	point_txnPooln := fmt.Sprintf("%p=",txnPool)
 	if point_txnPooln!= point_txnPool{
 		log.Trace("Get Trans point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
 		point_txnPool=point_txnPooln
 	}
-	txnPool.lockme()
-	defer txnPool.unLockme()
 	txn := txnPool.list[hash]
 	// Fixme need lock
 	return txn
 }
 
 func (txnPool *TXNPool) AppendTxnPool(txn *transaction.Transaction) bool {
+	txnPool.lockme()
 	point_txnPooln := fmt.Sprintf("%p=",txnPool)
 	if point_txnPooln!= point_txnPool{
-		log.Trace("Append point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+		log.Trace("Append point_txnPooln changed=[",point_txnPooln,"],old=[",point_txnPool,"]")
 		point_txnPool=point_txnPooln
 	}
 	hash := txn.Hash()
 	// TODO: Call VerifyTransactionWithTxPool to verify tx
-	txnPool.lockme()
 	txnPool.list[hash] = txn
 	txnPool.txnCnt++
 	txnPool.unLockme()
@@ -75,14 +75,13 @@ func (txnPool *TXNPool) AppendTxnPool(txn *transaction.Transaction) bool {
 
 // Attention: clean the trasaction Pool after the consensus confirmed all of the transcation
 func (txnPool *TXNPool) GetTxnPool(cleanPool bool) map[common.Uint256]*transaction.Transaction {
+	txnPool.lockme()
+	defer txnPool.unLockme()
 	point_txnPooln := fmt.Sprintf("%p=",txnPool)
 	if point_txnPooln!= point_txnPool{
 		log.Trace("GetTxn point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
 		point_txnPool=point_txnPooln
 	}
-	txnPool.lockme()
-	defer txnPool.unLockme()
-
 	list := txnPool.list
 	if cleanPool == true {
 		txnPool.init()
