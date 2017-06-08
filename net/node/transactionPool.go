@@ -12,34 +12,76 @@ import (
 	"sync"
 )
 
+//var lk sync.Mutex
+var point_txnPool string
+
 type TXNPool struct {
-	sync.RWMutex
+	sync.Mutex
 	txnCnt uint64
+	count int
 	list   map[common.Uint256]*transaction.Transaction
 }
 
+func (txnPool *TXNPool) lockme(){
+	//point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	//if point_txnPooln!= point_txnPool{
+	//	log.Trace("point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+	//	point_txnPool=point_txnPooln
+	//}
+	txnPool.Lock()
+	txnPool.count++
+	if txnPool.count>1{
+		log.Trace("txnPool.count =",txnPool.count)
+	}
+}
+
+func (txnPool *TXNPool) unLockme(){
+	//point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	//if point_txnPooln!= point_txnPool{
+	//	log.Trace("point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+	//	point_txnPool=point_txnPooln
+	//}
+	txnPool.Unlock()
+	txnPool.count--
+}
+
 func (txnPool *TXNPool) GetTransaction(hash common.Uint256) *transaction.Transaction {
-	txnPool.RLock()
-	defer txnPool.RUnlock()
+	point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	if point_txnPooln!= point_txnPool{
+		log.Trace("Get Trans point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+		point_txnPool=point_txnPooln
+	}
+	txnPool.lockme()
+	defer txnPool.unLockme()
 	txn := txnPool.list[hash]
 	// Fixme need lock
 	return txn
 }
 
 func (txnPool *TXNPool) AppendTxnPool(txn *transaction.Transaction) bool {
+	point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	if point_txnPooln!= point_txnPool{
+		log.Trace("Append point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+		point_txnPool=point_txnPooln
+	}
 	hash := txn.Hash()
 	// TODO: Call VerifyTransactionWithTxPool to verify tx
-	txnPool.Lock()
+	txnPool.lockme()
 	txnPool.list[hash] = txn
 	txnPool.txnCnt++
-	txnPool.Unlock()
+	txnPool.unLockme()
 	return true
 }
 
 // Attention: clean the trasaction Pool after the consensus confirmed all of the transcation
 func (txnPool *TXNPool) GetTxnPool(cleanPool bool) map[common.Uint256]*transaction.Transaction {
-	txnPool.Lock()
-	defer txnPool.Unlock()
+	point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	if point_txnPooln!= point_txnPool{
+		log.Trace("GetTxn point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+		point_txnPool=point_txnPooln
+	}
+	txnPool.lockme()
+	defer txnPool.unLockme()
 
 	list := txnPool.list
 	if cleanPool == true {
@@ -58,6 +100,11 @@ func DeepCopy(mapIn map[common.Uint256]*transaction.Transaction) map[common.Uint
 
 // Attention: clean the trasaction Pool with committed transactions.
 func (txnPool *TXNPool) CleanTxnPool(txs []*transaction.Transaction) error {
+	point_txnPooln := fmt.Sprintf("%p=",txnPool)
+	if point_txnPooln!= point_txnPool{
+		log.Trace("Clean point_txnPooln changed=",point_txnPooln,"old=",point_txnPool)
+		point_txnPool=point_txnPooln
+	}
 	txsNum := len(txs)
 	txInPoolNum := len(txnPool.list)
 	cleaned := 0
@@ -69,7 +116,7 @@ func (txnPool *TXNPool) CleanTxnPool(txs []*transaction.Transaction) error {
 	if txsNum-cleaned != 1 {
 		log.Info(fmt.Sprintf("The Transactions num Unmatched. Expect %d, got %d .\n", txsNum, cleaned))
 	}
-	log.Debug(fmt.Sprintf("[CleanTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txsNum, cleaned, txInPoolNum-cleaned))
+	log.Trace(fmt.Sprintf("[CleanTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txsNum, cleaned, txInPoolNum-cleaned))
 	return nil
 }
 
@@ -90,9 +137,9 @@ func (node *node) SynchronizeTxnPool() {
 }
 
 func (txnPool *TXNPool) CleanSubmittedTransactions(block *ledger.Block) error {
-	txnPool.Lock()
-	defer txnPool.Unlock()
-	log.Debug()
+	txnPool.lockme()
+	defer txnPool.unLockme()
+	log.Trace()
 
 	err := txnPool.CleanTxnPool(block.Transactions)
 	if err != nil {

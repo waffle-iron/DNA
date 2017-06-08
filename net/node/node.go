@@ -171,7 +171,14 @@ func (node *node) CompareAndSetState(old, new uint32) bool {
 	return atomic.CompareAndSwapUint32(&(node.state), old, new)
 }
 
+var nodepoint string
+
 func (node *node) LocalNode() Noder {
+	nodepointN := fmt.Sprintf("node point=%p,txnpool point=%p",node.local,&node.local.TXNPool)
+	if nodepointN != nodepoint{
+		log.Trace(fmt.Sprintf("node point changed"),nodepointN,"old=",nodepoint)
+		nodepoint=nodepointN
+	}
 	return node.local
 }
 
