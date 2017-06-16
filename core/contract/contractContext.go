@@ -75,12 +75,12 @@ func (cxt *ContractContext) AddContract(contract *Contract, pubkey *crypto.PubKe
 			return errors.New("The program hash is not exist.")
 		}
 
-		log.Debug("Multi Sig: contract.Code:", cxt.Codes[index])
+		//log.Debug("Multi Sig: contract.Code:", cxt.Codes[index])
 
 		if cxt.Codes[index] == nil {
 			cxt.Codes[index] = contract.Code
 		}
-		log.Debug("Multi Sig: cxt.Codes[index]:", cxt.Codes[index])
+		//log.Debug("Multi Sig: cxt.Codes[index]:", cxt.Codes[index])
 
 		if cxt.Parameters[index] == nil {
 			cxt.Parameters[index] = make([][]byte, len(contract.Parameters))
@@ -232,7 +232,7 @@ func (cxt *ContractContext) GetPrograms() []*pg.Program {
 	}
 	programs := make([]*pg.Program, len(cxt.Parameters))
 
-	log.Debug(" len(cxt.Codes)", len(cxt.Codes))
+	//log.Debug(" len(cxt.Codes)", len(cxt.Codes))
 
 	for i := 0; i < len(cxt.Codes); i++ {
 		sb := pg.NewProgramBuilder()
