@@ -4,7 +4,6 @@ import (
 	. "DNA/common"
 	"DNA/common/log"
 	"DNA/common/serialization"
-	"DNA/core/account"
 	. "DNA/core/asset"
 	"DNA/core/contract/program"
 	. "DNA/core/ledger"
@@ -22,6 +21,7 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+	"DNA/core/account"
 )
 
 const (
@@ -763,9 +763,7 @@ func (bd *ChainStore) persist(b *Block) error {
 				value.Balances[assetId] += output.Value
 			} else {
 				accountState, err := bd.GetAccount(programHash)
-				if err != nil && err.Error() != ErrDBNotFound.Error() {
-					return err
-				}
+				if err != nil && err.Error() != ErrDBNotFound.Error() { return err }
 				if accountState != nil {
 					accountState.Balances[assetId] += output.Value
 				} else {

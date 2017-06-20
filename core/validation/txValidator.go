@@ -2,12 +2,12 @@ package validation
 
 import (
 	"DNA/common"
+	"DNA/common/log"
 	"DNA/core/ledger"
 	tx "DNA/core/transaction"
 	"DNA/core/transaction/payload"
 	"errors"
 	"fmt"
-	"DNA/common/log"
 	"math"
 )
 
