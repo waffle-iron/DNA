@@ -4,6 +4,7 @@ import (
 	. "DNA/common"
 	"DNA/common/log"
 	"DNA/common/serialization"
+	"DNA/core/account"
 	. "DNA/core/asset"
 	"DNA/core/contract/program"
 	. "DNA/core/ledger"
@@ -21,7 +22,6 @@ import (
 	"math/big"
 	"sort"
 	"sync"
-	"DNA/core/account"
 )
 
 const (
@@ -262,20 +262,14 @@ func (bd *ChainStore) IsDoubleSpend(tx *tx.Transaction) bool {
 		}
 
 		unspents, _ := GetUint16Array(unspentValue)
-		findFlag := false
 		for k := 0; k < len(unspents); k++ {
 			if unspents[k] == tx.UTXOInputs[i].ReferTxOutputIndex {
-				findFlag = true
-				break
+				return false
 			}
-		}
-
-		if !findFlag {
-			return true
 		}
 	}
 
-	return false
+	return true
 }
 
 func (bd *ChainStore) GetBlockHash(height uint32) (Uint256, error) {
@@ -763,7 +757,9 @@ func (bd *ChainStore) persist(b *Block) error {
 				value.Balances[assetId] += output.Value
 			} else {
 				accountState, err := bd.GetAccount(programHash)
-				if err != nil && err.Error() != ErrDBNotFound.Error() { return err }
+				if err != nil && err.Error() != ErrDBNotFound.Error() {
+					return err
+				}
 				if accountState != nil {
 					accountState.Balances[assetId] += output.Value
 				} else {
@@ -825,13 +821,14 @@ func (bd *ChainStore) persist(b *Block) error {
 			}
 
 			// find Transactions[i].UTXOInputs[index].ReferTxOutputIndex and delete it
-			for k := 0; k < len(unspents[txhash]); k++ {
-				if unspents[txhash][k] == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
-					unspents[txhash] = append(unspents[txhash], unspents[txhash][:k]...)
-					unspents[txhash] = append(unspents[txhash], unspents[txhash][k+1:]...)
-					break
+			txunspent := make([]uint16, 0, len(unspents[txhash])-1)
+			for _, outputIndex := range unspents[txhash] {
+				if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
+					continue
 				}
+				txunspent = append(txunspent, outputIndex)
 			}
+			unspents[txhash] = txunspent
 		}
 
 		// bookkeeper
