@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
+	//"encoding/hex"
 	"fmt"
 	"net"
 	"strconv"
@@ -39,8 +39,8 @@ func newGetAddr() ([]byte, error) {
 		return nil, err
 	}
 
-	str := hex.EncodeToString(buf)
-	log.Debug("The message get addr length is: ", len(buf), " ", str)
+	//str := hex.EncodeToString(buf)
+	//log.Debug("The message get addr length is: ", len(buf), " ", str)
 
 	return buf, err
 }
