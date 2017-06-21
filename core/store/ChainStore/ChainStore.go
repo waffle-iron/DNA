@@ -248,6 +248,17 @@ func (bd *ChainStore) InitLedgerStore(l *Ledger) error {
 	return nil
 }
 
+func (bd *ChainStore) IsTxHashDuplicate(Tx *tx.Transaction) bool {
+	t := new(tx.Transaction)
+
+	err := bd.getTx(t, Tx.Hash())
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
+
 func (bd *ChainStore) IsDoubleSpend(tx *tx.Transaction) bool {
 	if len(tx.UTXOInputs) == 0 {
 		return false
