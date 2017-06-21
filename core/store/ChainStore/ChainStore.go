@@ -262,20 +262,14 @@ func (bd *ChainStore) IsDoubleSpend(tx *tx.Transaction) bool {
 		}
 
 		unspents, _ := GetUint16Array(unspentValue)
-		findFlag := false
 		for k := 0; k < len(unspents); k++ {
 			if unspents[k] == tx.UTXOInputs[i].ReferTxOutputIndex {
-				findFlag = true
-				break
+				return false
 			}
-		}
-
-		if !findFlag {
-			return true
 		}
 	}
 
-	return false
+	return true
 }
 
 func (bd *ChainStore) GetBlockHash(height uint32) (Uint256, error) {
@@ -322,7 +316,7 @@ func (bd *ChainStore) GetContract(hash []byte) ([]byte, error) {
 		return nil, err_get
 	}
 
-	log.Debug("GetContract Data: ", bData)
+	//log.Debug("GetContract Data: ", bData)
 
 	return bData, nil
 }
@@ -427,7 +421,7 @@ func (bd *ChainStore) GetHeader(hash Uint256) (*Header, error) {
 	h.Blockdata.Program = new(program.Program)
 
 	prefix := []byte{byte(DATA_Header)}
-	log.Debug("GetHeader Data:", hash.ToArray())
+	//log.Debug("GetHeader Data:", hash.ToArray())
 	data, err_get := bd.st.Get(append(prefix, hash.ToArray()...))
 	//log.Debug( "Get Header Data: %x\n",  data )
 	if err_get != nil {
@@ -827,13 +821,14 @@ func (bd *ChainStore) persist(b *Block) error {
 			}
 
 			// find Transactions[i].UTXOInputs[index].ReferTxOutputIndex and delete it
-			for k := 0; k < len(unspents[txhash]); k++ {
-				if unspents[txhash][k] == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
-					unspents[txhash] = append(unspents[txhash], unspents[txhash][:k]...)
-					unspents[txhash] = append(unspents[txhash], unspents[txhash][k+1:]...)
-					break
+			txunspent := make([]uint16, 0, len(unspents[txhash])-1)
+			for _, outputIndex := range unspents[txhash] {
+				if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
+					continue
 				}
+				txunspent = append(txunspent, outputIndex)
 			}
+			unspents[txhash] = txunspent
 		}
 
 		// bookkeeper
@@ -1010,7 +1005,7 @@ func (bd *ChainStore) addHeader(header *Header) {
 	var sysfee uint64 = 0xFFFFFFFFFFFFFFFF
 	serialization.WriteUint64(w, sysfee)
 	header.Serialize(w)
-	log.Debug(fmt.Sprintf("header data: %x\n", w))
+	//log.Debug(fmt.Sprintf("header data: %x\n", w))
 
 	// PUT VALUE
 	bd.st.BatchPut(headerKey.Bytes(), w.Bytes())
