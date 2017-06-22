@@ -206,7 +206,7 @@ func (this *TXNPool) cleanTransactionList(txns []*transaction.Transaction) error
 	if txnsNum != cleaned {
 		log.Info(fmt.Sprintf("The Transactions num Unmatched. Expect %d, got %d .\n", txnsNum, cleaned))
 	}
-	log.Info(fmt.Sprintf("[cleanProcessTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txnsNum, cleaned, this.GetTransactionCount()))
+	log.Trace(fmt.Sprintf("[cleanProcessTxnPool], Requested %d clean, %d transactions cleaned from localNode.TransPool and remains %d still in TxPool", txnsNum, cleaned, this.GetTransactionCount()))
 	return nil
 }
 
