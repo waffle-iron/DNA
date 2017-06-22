@@ -160,7 +160,7 @@ func (rt *restServer) initGetHandler() {
 			w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Connection", "close")
+			//w.Header().Set("Connection", "close")
 			w.Write([]byte(data))
 		})
 	}
@@ -207,7 +207,7 @@ func (rt *restServer) initPostHandler() {
 			w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Connection", "close")
+			//w.Header().Set("Connection", "close")
 			w.Write([]byte(data))
 		})
 	}
