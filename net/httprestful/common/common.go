@@ -217,10 +217,11 @@ func SendRawTransaction(cmd map[string]interface{}) map[string]interface{} {
 	}
 	var hash Uint256
 	hash = txn.Hash()
-	if err := VerifyAndSendTx(&txn); err != nil {
-		resp["Error"] = Err.INTERNAL_ERROR
-		return resp
-	}
+	go VerifyAndSendTx(&txn)
+	//if err := VerifyAndSendTx(&txn); err != nil {
+	//	resp["Error"] = Err.INTERNAL_ERROR
+	//	return resp
+	//}
 	resp["Result"] = ToHexString(hash.ToArray())
 	return resp
 }
