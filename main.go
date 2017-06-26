@@ -13,9 +13,12 @@ import (
 	"DNA/net/httpjsonrpc"
 	"DNA/net/httprestful"
 	"DNA/net/protocol"
+	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"time"
+	syslog "log"
+	"net/http"
 )
 
 const (
@@ -35,6 +38,9 @@ func init() {
 }
 
 func main() {
+	go func() {
+		syslog.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	var acct *account.Account
 	var blockChain *ledger.Blockchain
 	var err error
