@@ -93,10 +93,24 @@ func NewNode() *node {
 	return &n
 }
 
+func(node *node) IsServicesNode()bool{
+	nodePubkey:= node.GetBookKeeperAddr()
+	BookKeeperList,_,err:=ledger.DefaultLedger.Store.GetBookKeeperList()
+	if err != nil {
+		log.Warn("[IsServicesNode], GetBookKeeperList failed.")
+	}
+	for _, v := range  BookKeeperList{
+		if nodePubkey == v{
+			return false
+		}
+	}
+	return true
+}
+
 func InitNode(pubKey *crypto.PubKey) Noder {
 	n := NewNode()
 	n.version = PROTOCOLVERSION
-	if Parameters.NodeType == SERVICENODENAME {
+	if n.IsServicesNode() {
 		n.services = uint64(SERVICENODE)
 	} else if Parameters.NodeType == VERIFYNODENAME {
 		n.services = uint64(VERIFYNODE)

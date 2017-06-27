@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 const (
@@ -248,6 +249,28 @@ func getRawTransaction(params []interface{}) map[string]interface{} {
 	}
 }
 
+var reqCha = make(chan *tx.Transaction, 900000)
+func hanlereq(){
+	go func(){
+		for{
+			tx := <- reqCha
+			go VerifyAndSendTx(tx)
+		}
+	}()
+
+	go func(){
+		timer := time.NewTicker(time.Second*10)
+		for{
+			<-timer.C
+			fmt.Printf("=============ReqChan len:%v\n", len(reqCha))
+		}
+	}()
+}
+
+func init(){
+	hanlereq()
+}
+
 // A JSON example for sendrawtransaction method as following:
 //   {"jsonrpc": "2.0", "method": "sendrawtransaction", "params": ["raw transactioin in hex"], "id": 0}
 func sendRawTransaction(params []interface{}) map[string]interface{} {
@@ -267,7 +290,14 @@ func sendRawTransaction(params []interface{}) map[string]interface{} {
 			return DnaRpcInvalidTransaction
 		}
 		hash = txn.Hash()
-		go VerifyAndSendTx(&txn)
+
+		select {
+		case reqCha<-&txn:
+		default:
+			fmt.Println("=======ReqChan is full")
+		}
+
+		//go VerifyAndSendTx(&txn)
 		//if err := VerifyAndSendTx(&txn); err != nil {
 		//	return DnaRpcInternalError
 		//}

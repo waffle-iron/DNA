@@ -19,6 +19,8 @@ type Neter interface {
 	GetNeighborNoder() []protocol.Noder
 	Tx(buf []byte)
 	AppendTxnPool(*transaction.Transaction) bool
+	AppendTxnPoolAsync(tx *transaction.Transaction, priority int) <-chan bool
+	GetTxnPoolByCount(count int) map[Uint256]*transaction.Transaction
 }
 
 func StartProtocol(pubKey *crypto.PubKey) protocol.Noder {

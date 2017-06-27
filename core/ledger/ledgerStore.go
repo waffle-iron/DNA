@@ -24,7 +24,7 @@ type ILedgerStore interface {
 
 	GetTransaction(hash Uint256) (*tx.Transaction, error)
 
-	SaveAsset(assetid Uint256, asset *Asset) error
+	//SaveAsset(assetid Uint256, asset *Asset) error
 	GetAsset(hash Uint256) (*Asset, error)
 
 	GetAccount(programHash Uint160) (*account.AccountState, error)

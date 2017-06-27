@@ -18,6 +18,7 @@ import (
 	"DNA/events"
 	"DNA/net"
 	msg "DNA/net/message"
+	"DNA/net/node"
 	"errors"
 	"fmt"
 	"time"
@@ -66,6 +67,7 @@ func NewDbftService(client cl.Client, logDictionary string, localNet net.Neter) 
 
 func (ds *DbftService) BlockPersistCompleted(v interface{}) {
 	log.Debug()
+	log.Trace("===============>BlockPersistCompleted=> clear start")
 	if block, ok := v.(*ledger.Block); ok {
 		log.Info(fmt.Sprintf("persist block: %d", block.Hash()))
 		err := ds.localNet.CleanSubmittedTransactions(block)
@@ -269,6 +271,7 @@ func (ds *DbftService) InitializeConsensus(viewNum byte) error {
 
 		ds.timer.Stop()
 		ds.timer.Reset(GenBlockTime << (viewNum + 1))
+		log.Trace("============>Change View complete")
 	}
 	return nil
 }
@@ -353,7 +356,8 @@ func (ds *DbftService) GetUnverifiedTxs(txs []*tx.Transaction) []*tx.Transaction
 
 func (ds *DbftService) VerifyTxs(txs []*tx.Transaction) error {
 	for _, t := range txs {
-		if ok := ds.localNet.AppendTxnPool(t); !ok {
+		// if ok := ds.localNet.AppendTxnPool(t); !ok {
+		if <-ds.localNet.AppendTxnPoolAsync(t, node.PRIORITY_HIGH) == false {
 			return errors.New("[dbftService] VerifyTxs failed when AppendTxnPool.")
 		}
 	}
@@ -429,6 +433,7 @@ func (ds *DbftService) PrepareRequestReceived(payload *msg.ConsensusPayload, mes
 	ds.SignAndRelay(payload)
 
 	log.Info("Prepare Request finished")
+	log.Trace("============>Prepare request complete")
 }
 
 func (ds *DbftService) PrepareResponseReceived(payload *msg.ConsensusPayload, message *PrepareResponse) {
@@ -460,6 +465,7 @@ func (ds *DbftService) PrepareResponseReceived(payload *msg.ConsensusPayload, me
 		return
 	}
 	log.Info("Prepare Response finished")
+	log.Trace("============>Prepare response complete")
 }
 
 func (ds *DbftService) RefreshPolicy() {
@@ -549,7 +555,8 @@ func (ds *DbftService) Timeout() {
 			}
 
 			ds.context.Nonce = GetNonce()
-			transactionsPool := ds.localNet.GetTxnPool(false)
+			transactionsPool := ds.localNet.GetTxnPoolByCount(50000)
+			//transactionsPool := ds.localNet.GetTxnPool(false)
 			//TODO: add policy
 			//TODO: add max TX limitation
 
@@ -567,6 +574,7 @@ func (ds *DbftService) Timeout() {
 		}
 		payload := ds.context.MakePrepareRequest()
 		ds.SignAndRelay(payload)
+		log.Trace("============>Timeout complete")
 		ds.timer.Stop()
 		ds.timer.Reset(GenBlockTime << (ds.timeView + 1))
 	} else if (ds.context.State.HasFlag(Primary) && ds.context.State.HasFlag(RequestSent)) || ds.context.State.HasFlag(Backup) {

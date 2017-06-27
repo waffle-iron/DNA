@@ -82,6 +82,7 @@ type Noder interface {
 	GetConnectionCnt() uint
 	GetTxnPool(bool) map[common.Uint256]*transaction.Transaction
 	AppendTxnPool(*transaction.Transaction) bool
+	AppendTxnPoolAsync(tx *transaction.Transaction, priority int) <-chan bool
 	ExistedID(id common.Uint256) bool
 	ReqNeighborList()
 	DumpInfo()
@@ -122,6 +123,8 @@ type Noder interface {
 	GetLastRXTime() time.Time
 	SetHeight(height uint64)
 	WaitForFourPeersStart()
+    IsServicesNode()bool
+	GetTxnPoolByCount(count int) map[common.Uint256]*transaction.Transaction
 }
 
 func (msg *NodeAddr) Deserialization(p []byte) error {

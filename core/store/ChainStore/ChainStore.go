@@ -11,7 +11,7 @@ import (
 	. "DNA/core/store"
 	. "DNA/core/store/LevelDBStore"
 	tx "DNA/core/transaction"
-	"DNA/core/transaction/payload"
+	//"DNA/core/transaction/payload"
 	"DNA/core/validation"
 	"DNA/crypto"
 	. "DNA/errors"
@@ -26,9 +26,12 @@ import (
 
 const (
 	HeaderHashListCount = 2000
+	MAXTRANSACTIONCOMMITNUM =5000
+
 )
 
 var (
+	outputCount int
 	ErrDBNotFound = errors.New("leveldb: not found")
 )
 
@@ -457,29 +460,29 @@ func (bd *ChainStore) GetHeader(hash Uint256) (*Header, error) {
 
 	return h, err
 }
-
-func (bd *ChainStore) SaveAsset(assetId Uint256, asset *Asset) error {
-	w := bytes.NewBuffer(nil)
-
-	asset.Serialize(w)
-
-	// generate key
-	assetKey := bytes.NewBuffer(nil)
-	// add asset prefix.
-	assetKey.WriteByte(byte(ST_Info))
-	// contact asset id
-	assetId.Serialize(assetKey)
-
-	log.Debug(fmt.Sprintf("asset key: %x\n", assetKey))
-
-	// PUT VALUE
-	err := bd.st.Put(assetKey.Bytes(), w.Bytes())
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
+//
+//func (bd *ChainStore) SaveAsset(assetId Uint256, asset *Asset) error {
+//	w := bytes.NewBuffer(nil)
+//
+//	asset.Serialize(w)
+//
+//	// generate key
+//	assetKey := bytes.NewBuffer(nil)
+//	// add asset prefix.
+//	assetKey.WriteByte(byte(ST_Info))
+//	// contact asset id
+//	assetId.Serialize(assetKey)
+//
+//	log.Debug(fmt.Sprintf("asset key: %x\n", assetKey))
+//
+//	// PUT VALUE
+//	err := bd.st.Put(assetKey.Bytes(), w.Bytes())
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 func (bd *ChainStore) GetAsset(hash Uint256) (*Asset, error) {
 	log.Debug(fmt.Sprintf("GetAsset Hash: %x\n", hash))
@@ -556,9 +559,15 @@ func (bd *ChainStore) SaveTransaction(tx *tx.Transaction, height uint32) error {
 	log.Debug(fmt.Sprintf("transaction tx data: %x\n", w))
 
 	// put value
-	err := bd.st.Put(txhash.Bytes(), w.Bytes())
+	err := bd.st.BatchPut(txhash.Bytes(), w.Bytes())
 	if err != nil {
 		return err
+	}
+	outputCount ++
+	if outputCount >=MAXTRANSACTIONCOMMITNUM{
+		bd.st.BatchCommit()
+		bd.st.NewBatch()
+		outputCount=0
 	}
 
 	return nil
@@ -648,13 +657,14 @@ func (self *ChainStore) GetBookKeeperList() ([]*crypto.PubKey, []*crypto.PubKey,
 }
 
 func (bd *ChainStore) persist(b *Block) error {
-	unspents := make(map[Uint256][]uint16)
-	quantities := make(map[Uint256]Fixed64)
-
-	///////////////////////////////////////////////////////////////
-	// Get Unspents for every tx
-	unspentPrefix := []byte{byte(IX_Unspent)}
-	accounts := make(map[Uint160]*account.AccountState, 0)
+	log.Trace("********************** persist start n1")
+	//unspents := make(map[Uint256][]uint16)
+	//quantities := make(map[Uint256]Fixed64)
+	//
+	/////////////////////////////////////////////////////////////////
+	//// Get Unspents for every tx
+	//unspentPrefix := []byte{byte(IX_Unspent)}
+	//accounts := make(map[Uint160]*account.AccountState, 0)
 
 	///////////////////////////////////////////////////////////////
 	// batch write begin
@@ -678,7 +688,7 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(bhhash.Bytes(), w.Bytes())
-
+	log.Trace("********************** persist start n2")
 	//////////////////////////////////////////////////////////////
 	// generate key with DATA_BlockHash prefix
 	bhash := bytes.NewBuffer(nil)
@@ -720,11 +730,12 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(bhash.Bytes(), hashWriter.Bytes())
+	log.Trace("********************** persist start n3")
 
 	//////////////////////////////////////////////////////////////
 	// save transactions to leveldb
 	nLen := len(b.Transactions)
-
+	outputCount = 0
 	for i := 0; i < nLen; i++ {
 
 		// now support RegisterAsset / IssueAsset / TransferAsset and Miner TX ONLY.
@@ -741,219 +752,221 @@ func (bd *ChainStore) persist(b *Block) error {
 				return err
 			}
 		}
-		if b.Transactions[i].TxType == tx.RegisterAsset {
-			ar := b.Transactions[i].Payload.(*payload.RegisterAsset)
-			err = bd.SaveAsset(b.Transactions[i].Hash(), ar.Asset)
-			if err != nil {
-				return err
-			}
-		}
-
-		if b.Transactions[i].TxType == tx.IssueAsset {
-			results := b.Transactions[i].GetMergedAssetIDValueFromOutputs()
-			for assetId, value := range results {
-				if _, ok := quantities[assetId]; !ok {
-					quantities[assetId] += value
-				} else {
-					quantities[assetId] = value
-				}
-			}
-		}
-
-		for index := 0; index < len(b.Transactions[i].Outputs); index++ {
-			output := b.Transactions[i].Outputs[index]
-			programHash := output.ProgramHash
-			assetId := output.AssetID
-			if value, ok := accounts[programHash]; ok {
-				value.Balances[assetId] += output.Value
-			} else {
-				accountState, err := bd.GetAccount(programHash)
-				if err != nil && err.Error() != ErrDBNotFound.Error() {
-					return err
-				}
-				if accountState != nil {
-					accountState.Balances[assetId] += output.Value
-				} else {
-					balances := make(map[Uint256]Fixed64, 0)
-					balances[assetId] = output.Value
-					accountState = account.NewAccountState(programHash, balances)
-				}
-				accounts[programHash] = accountState
-			}
-		}
-
-		for index := 0; index < len(b.Transactions[i].UTXOInputs); index++ {
-			input := b.Transactions[i].UTXOInputs[index]
-			transaction, err := bd.GetTransaction(input.ReferTxID)
-			if err != nil {
-				return err
-			}
-			index := input.ReferTxOutputIndex
-			output := transaction.Outputs[index]
-			programHash := output.ProgramHash
-			assetId := output.AssetID
-			if value, ok := accounts[programHash]; ok {
-				value.Balances[assetId] -= output.Value
-			} else {
-				accountState, err := bd.GetAccount(programHash)
-				if err != nil {
-					return err
-				}
-				accountState.Balances[assetId] -= output.Value
-				accounts[programHash] = accountState
-			}
-			if accounts[programHash].Balances[assetId] < 0 {
-				return errors.New(fmt.Sprintf("account programHash:%v, assetId:%v insufficient of balance", programHash, assetId))
-			}
-		}
-
-		// init unspent in tx
-		txhash := b.Transactions[i].Hash()
-		for index := 0; index < len(b.Transactions[i].Outputs); index++ {
-			unspents[txhash] = append(unspents[txhash], uint16(index))
-		}
-
-		// delete unspent when spent in input
-		for index := 0; index < len(b.Transactions[i].UTXOInputs); index++ {
-			txhash := b.Transactions[i].UTXOInputs[index].ReferTxID
-
-			// if get unspent by utxo
-			if _, ok := unspents[txhash]; !ok {
-				unspentValue, err_get := bd.st.Get(append(unspentPrefix, txhash.ToArray()...))
-
-				if err_get != nil {
-					return err_get
-				}
-
-				unspents[txhash], err_get = GetUint16Array(unspentValue)
-				if err_get != nil {
-					return err_get
-				}
-			}
-
-			// find Transactions[i].UTXOInputs[index].ReferTxOutputIndex and delete it
-			txunspent := make([]uint16, 0, len(unspents[txhash])-1)
-			for _, outputIndex := range unspents[txhash] {
-				if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
-					continue
-				}
-				txunspent = append(txunspent, outputIndex)
-			}
-			unspents[txhash] = txunspent
-		}
-
-		// bookkeeper
-		if b.Transactions[i].TxType == tx.BookKeeper {
-			bk := b.Transactions[i].Payload.(*payload.BookKeeper)
-
-			switch bk.Action {
-			case payload.BookKeeperAction_ADD:
-				findflag := false
-				for k := 0; k < len(nextBookKeeper); k++ {
-					if bk.PubKey.X.Cmp(nextBookKeeper[k].X) == 0 && bk.PubKey.Y.Cmp(nextBookKeeper[k].Y) == 0 {
-						findflag = true
-						break
-					}
-				}
-
-				if !findflag {
-					needUpdateBookKeeper = true
-					nextBookKeeper = append(nextBookKeeper, bk.PubKey)
-					sort.Sort(crypto.PubKeySlice(nextBookKeeper))
-				}
-			case payload.BookKeeperAction_SUB:
-				ind := -1
-				for k := 0; k < len(nextBookKeeper); k++ {
-					if bk.PubKey.X.Cmp(nextBookKeeper[k].X) == 0 && bk.PubKey.Y.Cmp(nextBookKeeper[k].Y) == 0 {
-						ind = k
-						break
-					}
-				}
-
-				if ind != -1 {
-					needUpdateBookKeeper = true
-					// already sorted
-					nextBookKeeper = append(nextBookKeeper[:ind], nextBookKeeper[ind+1:]...)
-				}
-			}
-
-		}
+		//if b.Transactions[i].TxType == tx.RegisterAsset {
+		//	ar := b.Transactions[i].Payload.(*payload.RegisterAsset)
+		//	err = bd.SaveAsset(b.Transactions[i].Hash(), ar.Asset)
+		//	if err != nil {
+		//		return err
+		//	}
+		//}
+		//
+		//if b.Transactions[i].TxType == tx.IssueAsset {
+		//	results := b.Transactions[i].GetMergedAssetIDValueFromOutputs()
+		//	for assetId, value := range results {
+		//		if _, ok := quantities[assetId]; !ok {
+		//			quantities[assetId] += value
+		//		} else {
+		//			quantities[assetId] = value
+		//		}
+		//	}
+		//}
+		//
+		//for index := 0; index < len(b.Transactions[i].Outputs); index++ {
+		//	output := b.Transactions[i].Outputs[index]
+		//	programHash := output.ProgramHash
+		//	assetId := output.AssetID
+		//	if value, ok := accounts[programHash]; ok {
+		//		value.Balances[assetId] += output.Value
+		//	} else {
+		//		accountState, err := bd.GetAccount(programHash)
+		//		if err != nil && err.Error() != ErrDBNotFound.Error() {
+		//			return err
+		//		}
+		//		if accountState != nil {
+		//			accountState.Balances[assetId] += output.Value
+		//		} else {
+		//			balances := make(map[Uint256]Fixed64, 0)
+		//			balances[assetId] = output.Value
+		//			accountState = account.NewAccountState(programHash, balances)
+		//		}
+		//		accounts[programHash] = accountState
+		//	}
+		//}
+		//
+		//for index := 0; index < len(b.Transactions[i].UTXOInputs); index++ {
+		//	input := b.Transactions[i].UTXOInputs[index]
+		//	transaction, err := bd.GetTransaction(input.ReferTxID)
+		//	if err != nil {
+		//		return err
+		//	}
+		//	index := input.ReferTxOutputIndex
+		//	output := transaction.Outputs[index]
+		//	programHash := output.ProgramHash
+		//	assetId := output.AssetID
+		//	if value, ok := accounts[programHash]; ok {
+		//		value.Balances[assetId] -= output.Value
+		//	} else {
+		//		accountState, err := bd.GetAccount(programHash)
+		//		if err != nil {
+		//			return err
+		//		}
+		//		accountState.Balances[assetId] -= output.Value
+		//		accounts[programHash] = accountState
+		//	}
+		//	if accounts[programHash].Balances[assetId] < 0 {
+		//		return errors.New(fmt.Sprintf("account programHash:%v, assetId:%v insufficient of balance", programHash, assetId))
+		//	}
+		//}
+		//
+		//// init unspent in tx
+		//txhash := b.Transactions[i].Hash()
+		//for index := 0; index < len(b.Transactions[i].Outputs); index++ {
+		//	unspents[txhash] = append(unspents[txhash], uint16(index))
+		//}
+		//
+		//// delete unspent when spent in input
+		//for index := 0; index < len(b.Transactions[i].UTXOInputs); index++ {
+		//	txhash := b.Transactions[i].UTXOInputs[index].ReferTxID
+		//
+		//	// if get unspent by utxo
+		//	if _, ok := unspents[txhash]; !ok {
+		//		unspentValue, err_get := bd.st.Get(append(unspentPrefix, txhash.ToArray()...))
+		//
+		//		if err_get != nil {
+		//			return err_get
+		//		}
+		//
+		//		unspents[txhash], err_get = GetUint16Array(unspentValue)
+		//		if err_get != nil {
+		//			return err_get
+		//		}
+		//	}
+		//
+		//	// find Transactions[i].UTXOInputs[index].ReferTxOutputIndex and delete it
+		//	txunspent := make([]uint16, 0, len(unspents[txhash])-1)
+		//	for _, outputIndex := range unspents[txhash] {
+		//		if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
+		//			continue
+		//		}
+		//		txunspent = append(txunspent, outputIndex)
+		//	}
+		//	unspents[txhash] = txunspent
+		//}
+		//
+		//// bookkeeper
+		//if b.Transactions[i].TxType == tx.BookKeeper {
+		//	bk := b.Transactions[i].Payload.(*payload.BookKeeper)
+		//
+		//	switch bk.Action {
+		//	case payload.BookKeeperAction_ADD:
+		//		findflag := false
+		//		for k := 0; k < len(nextBookKeeper); k++ {
+		//			if bk.PubKey.X.Cmp(nextBookKeeper[k].X) == 0 && bk.PubKey.Y.Cmp(nextBookKeeper[k].Y) == 0 {
+		//				findflag = true
+		//				break
+		//			}
+		//		}
+		//
+		//		if !findflag {
+		//			needUpdateBookKeeper = true
+		//			nextBookKeeper = append(nextBookKeeper, bk.PubKey)
+		//			sort.Sort(crypto.PubKeySlice(nextBookKeeper))
+		//		}
+		//	case payload.BookKeeperAction_SUB:
+		//		ind := -1
+		//		for k := 0; k < len(nextBookKeeper); k++ {
+		//			if bk.PubKey.X.Cmp(nextBookKeeper[k].X) == 0 && bk.PubKey.Y.Cmp(nextBookKeeper[k].Y) == 0 {
+		//				ind = k
+		//				break
+		//			}
+		//		}
+		//
+		//		if ind != -1 {
+		//			needUpdateBookKeeper = true
+		//			// already sorted
+		//			nextBookKeeper = append(nextBookKeeper[:ind], nextBookKeeper[ind+1:]...)
+		//		}
+		//	}
+		//
+		//}
 
 	}
-
-	if needUpdateBookKeeper {
-		//bookKeeper key
-		bkListKey := bytes.NewBuffer(nil)
-		bkListKey.WriteByte(byte(SYS_CurrentBookKeeper))
-
-		//bookKeeper value
-		bkListValue := bytes.NewBuffer(nil)
-
-		serialization.WriteUint8(bkListValue, uint8(len(currBookKeeper)))
-		for k := 0; k < len(currBookKeeper); k++ {
-			currBookKeeper[k].Serialize(bkListValue)
-		}
-
-		serialization.WriteUint8(bkListValue, uint8(len(nextBookKeeper)))
-		for k := 0; k < len(nextBookKeeper); k++ {
-			nextBookKeeper[k].Serialize(bkListValue)
-		}
-
-		// BookKeeper put value
-		bd.st.BatchPut(bkListKey.Bytes(), bkListValue.Bytes())
-
-		///////////////////////////////////////////////////////
-	}
-	///////////////////////////////////////////////////////
-	//*/
-
-	// batch put the unspents
-	for txhash, value := range unspents {
-		unspentKey := bytes.NewBuffer(nil)
-		unspentKey.WriteByte(byte(IX_Unspent))
-		txhash.Serialize(unspentKey)
-
-		if len(value) == 0 {
-			bd.st.BatchDelete(unspentKey.Bytes())
-		} else {
-			unspentArray := ToByteArray(value)
-			bd.st.BatchPut(unspentKey.Bytes(), unspentArray)
-		}
-	}
-
-	// batch put quantities
-	for assetId, value := range quantities {
-		quantityKey := bytes.NewBuffer(nil)
-		quantityKey.WriteByte(byte(ST_QuantityIssued))
-		assetId.Serialize(quantityKey)
-
-		qt, err := bd.GetQuantityIssued(assetId)
-		if err != nil {
-			return err
-		}
-
-		qt = qt + value
-
-		quantityArray := bytes.NewBuffer(nil)
-		qt.Serialize(quantityArray)
-
-		bd.st.BatchPut(quantityKey.Bytes(), quantityArray.Bytes())
-		log.Debug(fmt.Sprintf("quantityKey: %x\n", quantityKey.Bytes()))
-		log.Debug(fmt.Sprintf("quantityArray: %x\n", quantityArray.Bytes()))
-	}
-
-	for programHash, value := range accounts {
-		accountKey := new(bytes.Buffer)
-		accountKey.WriteByte(byte(ST_ACCOUNT))
-		programHash.Serialize(accountKey)
-
-		accountValue := new(bytes.Buffer)
-		value.Serialize(accountValue)
-
-		bd.st.BatchPut(accountKey.Bytes(), accountValue.Bytes())
-	}
+	//
+	//if needUpdateBookKeeper {
+	//	//bookKeeper key
+	//	bkListKey := bytes.NewBuffer(nil)
+	//	bkListKey.WriteByte(byte(SYS_CurrentBookKeeper))
+	//
+	//	//bookKeeper value
+	//	bkListValue := bytes.NewBuffer(nil)
+	//
+	//	serialization.WriteUint8(bkListValue, uint8(len(currBookKeeper)))
+	//	for k := 0; k < len(currBookKeeper); k++ {
+	//		currBookKeeper[k].Serialize(bkListValue)
+	//	}
+	//
+	//	serialization.WriteUint8(bkListValue, uint8(len(nextBookKeeper)))
+	//	for k := 0; k < len(nextBookKeeper); k++ {
+	//		nextBookKeeper[k].Serialize(bkListValue)
+	//	}
+	//
+	//	// BookKeeper put value
+	//	bd.st.BatchPut(bkListKey.Bytes(), bkListValue.Bytes())
+	//	log.Trace("********************** persist start n4")
+	//
+	//	///////////////////////////////////////////////////////
+	//}
+	/////////////////////////////////////////////////////////
+	////*/
+	//
+	//// batch put the unspents
+	//for txhash, value := range unspents {
+	//	unspentKey := bytes.NewBuffer(nil)
+	//	unspentKey.WriteByte(byte(IX_Unspent))
+	//	txhash.Serialize(unspentKey)
+	//
+	//	if len(value) == 0 {
+	//		bd.st.BatchDelete(unspentKey.Bytes())
+	//	} else {
+	//		unspentArray := ToByteArray(value)
+	//		bd.st.BatchPut(unspentKey.Bytes(), unspentArray)
+	//	}
+	//}
+	//
+	//// batch put quantities
+	//for assetId, value := range quantities {
+	//	quantityKey := bytes.NewBuffer(nil)
+	//	quantityKey.WriteByte(byte(ST_QuantityIssued))
+	//	assetId.Serialize(quantityKey)
+	//
+	//	qt, err := bd.GetQuantityIssued(assetId)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	qt = qt + value
+	//
+	//	quantityArray := bytes.NewBuffer(nil)
+	//	qt.Serialize(quantityArray)
+	//
+	//	bd.st.BatchPut(quantityKey.Bytes(), quantityArray.Bytes())
+	//	log.Debug(fmt.Sprintf("quantityKey: %x\n", quantityKey.Bytes()))
+	//	log.Debug(fmt.Sprintf("quantityArray: %x\n", quantityArray.Bytes()))
+	//}
+	//
+	//for programHash, value := range accounts {
+	//	accountKey := new(bytes.Buffer)
+	//	accountKey.WriteByte(byte(ST_ACCOUNT))
+	//	programHash.Serialize(accountKey)
+	//
+	//	accountValue := new(bytes.Buffer)
+	//	value.Serialize(accountValue)
+	//
+	//	bd.st.BatchPut(accountKey.Bytes(), accountValue.Bytes())
+	//}
 
 	// generate key with SYS_CurrentHeader prefix
+	log.Trace("********************** persist start n5")
 	currentBlockKey := bytes.NewBuffer(nil)
 	currentBlockKey.WriteByte(byte(SYS_CurrentBlock))
 	//fmt.Printf( "SYS_CurrentHeader key: %x\n",  currentBlockKey )
@@ -964,13 +977,13 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(currentBlockKey.Bytes(), currentBlock.Bytes())
-
+	log.Trace("********************** persist start n6")
 	err = bd.st.BatchCommit()
 
 	if err != nil {
 		return err
 	}
-
+	log.Trace("********************** persist end n2")
 	return nil
 }
 
@@ -1087,18 +1100,18 @@ func (bd *ChainStore) SaveBlock(b *Block, ledger *Ledger) error {
 
 	if b.Blockdata.Height == uint32(len(bd.headerIndex)) {
 		//Block verify
-		err := validation.VerifyBlock(b, ledger, false)
-		if err != nil {
-			log.Debug("VerifyBlock() error!")
-			return err
-		}
+		//err := validation.VerifyBlock(b, ledger, false)
+		//if err != nil {
+		//	log.Debug("VerifyBlock() error!")
+		//	return err
+		//}
 
 		bd.st.NewBatch()
 		h := new(Header)
 		h.Blockdata = b.Blockdata
 		bd.addHeader(h)
 		//log.Debug("batch dump: ", batch.Dump())
-		err = bd.st.BatchCommit()
+		err := bd.st.BatchCommit()
 		if err != nil {
 			return err
 		}
