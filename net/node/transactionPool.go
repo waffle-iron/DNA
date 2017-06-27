@@ -19,7 +19,7 @@ type appendTxTask struct {
 const PRIORITY_HIGH = 0
 const PRIORITY_MEDIUM = 1
 const PRIORITY_LOW = 2
-const MAX_TRANSACTIONNUM= 30000
+const MAX_TRANSACTIONNUM = 30000
 
 type TXNPool struct {
 	sync.RWMutex
@@ -164,8 +164,8 @@ func (this *TXNPool) GetTxnPoolByCount(count int) map[common.Uint256]*transactio
 	txnMap := make(map[common.Uint256]*transaction.Transaction, count)
 	for txnId, tx := range this.txnList {
 		txnMap[txnId] = tx
-		num ++
-		if num >=count{
+		num++
+		if num >= count {
 			break
 		}
 	}

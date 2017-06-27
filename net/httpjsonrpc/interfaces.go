@@ -250,24 +250,25 @@ func getRawTransaction(params []interface{}) map[string]interface{} {
 }
 
 var reqCha = make(chan *tx.Transaction, 900000)
-func hanlereq(){
-	go func(){
-		for{
-			tx := <- reqCha
+
+func hanlereq() {
+	go func() {
+		for {
+			tx := <-reqCha
 			go VerifyAndSendTx(tx)
 		}
 	}()
 
-	go func(){
-		timer := time.NewTicker(time.Second*10)
-		for{
+	go func() {
+		timer := time.NewTicker(time.Second * 10)
+		for {
 			<-timer.C
 			fmt.Printf("=============ReqChan len:%v\n", len(reqCha))
 		}
 	}()
 }
 
-func init(){
+func init() {
 	hanlereq()
 }
 
@@ -292,7 +293,7 @@ func sendRawTransaction(params []interface{}) map[string]interface{} {
 		hash = txn.Hash()
 
 		select {
-		case reqCha<-&txn:
+		case reqCha <- &txn:
 		default:
 			fmt.Println("=======ReqChan is full")
 		}

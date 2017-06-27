@@ -25,13 +25,12 @@ import (
 )
 
 const (
-	HeaderHashListCount = 2000
-	MAXTRANSACTIONCOMMITNUM =5000
-
+	HeaderHashListCount     = 2000
+	MAXTRANSACTIONCOMMITNUM = 5000
 )
 
 var (
-	outputCount int
+	outputCount   int
 	ErrDBNotFound = errors.New("leveldb: not found")
 )
 
@@ -460,6 +459,7 @@ func (bd *ChainStore) GetHeader(hash Uint256) (*Header, error) {
 
 	return h, err
 }
+
 //
 //func (bd *ChainStore) SaveAsset(assetId Uint256, asset *Asset) error {
 //	w := bytes.NewBuffer(nil)
@@ -563,11 +563,11 @@ func (bd *ChainStore) SaveTransaction(tx *tx.Transaction, height uint32) error {
 	if err != nil {
 		return err
 	}
-	outputCount ++
-	if outputCount >=MAXTRANSACTIONCOMMITNUM{
+	outputCount++
+	if outputCount >= MAXTRANSACTIONCOMMITNUM {
 		bd.st.BatchCommit()
 		bd.st.NewBatch()
-		outputCount=0
+		outputCount = 0
 	}
 
 	return nil
@@ -657,7 +657,7 @@ func (self *ChainStore) GetBookKeeperList() ([]*crypto.PubKey, []*crypto.PubKey,
 }
 
 func (bd *ChainStore) persist(b *Block) error {
-	log.Trace("********************** persist start n1")
+	//log.Trace("********************** persist start n1")
 	//unspents := make(map[Uint256][]uint16)
 	//quantities := make(map[Uint256]Fixed64)
 	//
@@ -688,7 +688,7 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(bhhash.Bytes(), w.Bytes())
-	log.Trace("********************** persist start n2")
+	//log.Trace("********************** persist start n2")
 	//////////////////////////////////////////////////////////////
 	// generate key with DATA_BlockHash prefix
 	bhash := bytes.NewBuffer(nil)
@@ -730,7 +730,7 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(bhash.Bytes(), hashWriter.Bytes())
-	log.Trace("********************** persist start n3")
+	//log.Trace("********************** persist start n3")
 
 	//////////////////////////////////////////////////////////////
 	// save transactions to leveldb
@@ -966,7 +966,7 @@ func (bd *ChainStore) persist(b *Block) error {
 	//}
 
 	// generate key with SYS_CurrentHeader prefix
-	log.Trace("********************** persist start n5")
+	//log.Trace("********************** persist start n5")
 	currentBlockKey := bytes.NewBuffer(nil)
 	currentBlockKey.WriteByte(byte(SYS_CurrentBlock))
 	//fmt.Printf( "SYS_CurrentHeader key: %x\n",  currentBlockKey )
@@ -977,13 +977,13 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	// BATCH PUT VALUE
 	bd.st.BatchPut(currentBlockKey.Bytes(), currentBlock.Bytes())
-	log.Trace("********************** persist start n6")
+	//log.Trace("********************** persist start n6")
 	err = bd.st.BatchCommit()
 
 	if err != nil {
 		return err
 	}
-	log.Trace("********************** persist end n2")
+	//log.Trace("********************** persist end n2")
 	return nil
 }
 

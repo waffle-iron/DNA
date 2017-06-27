@@ -17,7 +17,7 @@ type Neter interface {
 	GetBookKeepersAddrs() ([]*crypto.PubKey, uint64)
 	CleanSubmittedTransactions(block *ledger.Block) error
 	GetNeighborNoder() []protocol.Noder
-	Tx(buf []byte)
+	Tx(buf []byte, prior bool)
 	AppendTxnPool(*transaction.Transaction) bool
 	AppendTxnPoolAsync(tx *transaction.Transaction, priority int) <-chan bool
 	GetTxnPoolByCount(count int) map[Uint256]*transaction.Transaction
