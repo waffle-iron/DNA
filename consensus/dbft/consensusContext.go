@@ -168,6 +168,7 @@ func (cxt *ConsensusContext) GetStateDetail() string {
 }
 
 func (cxt *ConsensusContext) Reset(client cl.Client, localNode net.Neter) {
+	log.Trace("================> Reset Start.")
 	log.Debug()
 	cxt.State = Initial
 	cxt.PrevHash = ledger.DefaultLedger.Blockchain.CurrentBlockHash()
@@ -203,4 +204,5 @@ func (cxt *ConsensusContext) Reset(client cl.Client, localNode net.Neter) {
 	}
 
 	cxt.header = nil
+	log.Trace("================> Reset End.")
 }
