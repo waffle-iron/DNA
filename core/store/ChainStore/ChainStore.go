@@ -19,16 +19,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"hash"
 	"math/big"
 	"sort"
 	"sync"
 )
 
 const (
-	HeaderHashListCount = 2000
+	HeaderHashListCount     = 2000
+	MAXTRANSACTIONCOMMITNUM = 5000
 )
 
 var (
+	outputCount   int
 	ErrDBNotFound = errors.New("leveldb: not found")
 )
 
@@ -562,9 +565,15 @@ func (bd *ChainStore) SaveTransaction(tx *tx.Transaction, height uint32) error {
 	log.Debug(fmt.Sprintf("transaction tx data: %x\n", w))
 
 	// put value
-	err := bd.st.Put(txhash.Bytes(), w.Bytes())
+	err := bd.st.BatchPut(txhash.Bytes(), w.Bytes())
 	if err != nil {
 		return err
+	}
+	outputCount++
+	if outputCount >= MAXTRANSACTIONCOMMITNUM {
+		bd.st.BatchCommit()
+		bd.st.NewBatch()
+		outputCount = 0
 	}
 
 	return nil
@@ -728,25 +737,9 @@ func (bd *ChainStore) persist(b *Block) error {
 	bd.st.BatchPut(bhash.Bytes(), hashWriter.Bytes())
 
 	//////////////////////////////////////////////////////////////
-	// save transactions to leveldb
+	// save transactions summary info to leveldb
 	nLen := len(b.Transactions)
-
 	for i := 0; i < nLen; i++ {
-
-		// now support RegisterAsset / IssueAsset / TransferAsset and Miner TX ONLY.
-		if b.Transactions[i].TxType == tx.RegisterAsset ||
-			b.Transactions[i].TxType == tx.IssueAsset ||
-			b.Transactions[i].TxType == tx.TransferAsset ||
-			b.Transactions[i].TxType == tx.Record ||
-			b.Transactions[i].TxType == tx.BookKeeper ||
-			b.Transactions[i].TxType == tx.PrivacyPayload ||
-			b.Transactions[i].TxType == tx.BookKeeping ||
-			b.Transactions[i].TxType == tx.DataFile {
-			err = bd.SaveTransaction(b.Transactions[i], b.Blockdata.Height)
-			if err != nil {
-				return err
-			}
-		}
 		if b.Transactions[i].TxType == tx.RegisterAsset {
 			ar := b.Transactions[i].Payload.(*payload.RegisterAsset)
 			err = bd.SaveAsset(b.Transactions[i].Hash(), ar.Asset)
@@ -975,6 +968,24 @@ func (bd *ChainStore) persist(b *Block) error {
 
 	if err != nil {
 		return err
+	}
+
+	// save transactions to leveldb
+	for i := 0; i < nLen; i++ {
+		// now support RegisterAsset / IssueAsset / TransferAsset and Miner TX ONLY.
+		if b.Transactions[i].TxType == tx.RegisterAsset ||
+			b.Transactions[i].TxType == tx.IssueAsset ||
+			b.Transactions[i].TxType == tx.TransferAsset ||
+			b.Transactions[i].TxType == tx.Record ||
+			b.Transactions[i].TxType == tx.BookKeeper ||
+			b.Transactions[i].TxType == tx.PrivacyPayload ||
+			b.Transactions[i].TxType == tx.BookKeeping ||
+			b.Transactions[i].TxType == tx.DataFile {
+			err = bd.SaveTransaction(b.Transactions[i], b.Blockdata.Height)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
