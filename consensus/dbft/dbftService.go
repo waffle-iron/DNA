@@ -553,7 +553,8 @@ func (ds *DbftService) Timeout() {
 			}
 
 			ds.context.Nonce = GetNonce()
-			transactionsPool := ds.localNet.GetTxnPool(false)
+			transactionsPool := ds.localNet.GetTxnPoolByCount(50000)
+			//transactionsPool := ds.localNet.GetTxnPool(false)
 			//TODO: add policy
 			//TODO: add max TX limitation
 

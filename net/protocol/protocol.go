@@ -128,6 +128,7 @@ type Noder interface {
 	IsAddrInConnectingList(addr string) bool
 	SetAddrInConnectingList(addr string)
 	RemoveAddrInConnectingList(addr string)
+	GetTxnPoolByCount(count int) map[common.Uint256]*transaction.Transaction
 }
 
 func (msg *NodeAddr) Deserialization(p []byte) error {

@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash"
 	"math/big"
 	"sort"
 	"sync"

@@ -66,6 +66,22 @@ func (this *TXNPool) GetTxnPool(cleanPool bool) map[common.Uint256]*transaction.
 	return txnMap
 }
 
+//get the transaction in txnpool
+func (this *TXNPool) GetTxnPoolByCount(count int) map[common.Uint256]*transaction.Transaction {
+	this.Lock()
+	var num int
+	txnMap := make(map[common.Uint256]*transaction.Transaction, count)
+	for txnId, tx := range this.txnList {
+		txnMap[txnId] = tx
+		num++
+		if num >= count {
+			break
+		}
+	}
+	this.Unlock()
+	return txnMap
+}
+
 //clean the trasaction Pool with committed block.
 func (this *TXNPool) CleanSubmittedTransactions(block *ledger.Block) error {
 	this.cleanTransactionList(block.Transactions)
