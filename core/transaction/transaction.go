@@ -27,7 +27,7 @@ const (
 	PrivacyPayload TransactionType = 0x20
 	RegisterAsset  TransactionType = 0x40
 	TransferAsset  TransactionType = 0x80
-	Record         TransactionType = 0x81
+	Record         TransactionType = 0x11
 	DeployCode     TransactionType = 0xd0
 	DataFile       TransactionType = 0x12
 )
