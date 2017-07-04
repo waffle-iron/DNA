@@ -13,12 +13,12 @@ import (
 	"DNA/net/httpjsonrpc"
 	"DNA/net/httprestful"
 	"DNA/net/protocol"
+	syslog "log"
+	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"runtime"
 	"time"
-	syslog "log"
-	"net/http"
 )
 
 const (

@@ -187,7 +187,7 @@ func (bd *ChainStore) InitLedgerStoreWithGenesisBlock(genesisBlock *Block, defau
 			}
 		}
 
-		return bd.currentBlockHeight, nil
+		return current_Header_Height, nil
 
 	} else {
 		// batch delete old data
@@ -246,6 +246,17 @@ func (bd *ChainStore) InitLedgerStoreWithGenesisBlock(genesisBlock *Block, defau
 func (bd *ChainStore) InitLedgerStore(l *Ledger) error {
 	// TODO: InitLedgerStore
 	return nil
+}
+
+func (bd *ChainStore) IsTxHashDuplicate(Tx *tx.Transaction) bool {
+	t := new(tx.Transaction)
+
+	err := bd.getTx(t, Tx.Hash())
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
 }
 
 func (bd *ChainStore) IsDoubleSpend(tx *tx.Transaction) bool {
@@ -322,7 +333,7 @@ func (bd *ChainStore) GetContract(hash []byte) ([]byte, error) {
 		return nil, err_get
 	}
 
-	log.Debug("GetContract Data: ", bData)
+	//log.Debug("GetContract Data: ", bData)
 
 	return bData, nil
 }
@@ -427,7 +438,7 @@ func (bd *ChainStore) GetHeader(hash Uint256) (*Header, error) {
 	h.Blockdata.Program = new(program.Program)
 
 	prefix := []byte{byte(DATA_Header)}
-	log.Debug("GetHeader Data:", hash.ToArray())
+	//log.Debug("GetHeader Data:", hash.ToArray())
 	data, err_get := bd.st.Get(append(prefix, hash.ToArray()...))
 	//log.Debug( "Get Header Data: %x\n",  data )
 	if err_get != nil {
@@ -828,9 +839,9 @@ func (bd *ChainStore) persist(b *Block) error {
 
 			// find Transactions[i].UTXOInputs[index].ReferTxOutputIndex and delete it
 			unspentLen := len(unspents[txhash])
-			for k, outputIndex := range unspents[txhash]{
-				if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex){
-					unspents[txhash][k] =  unspents[txhash][unspentLen - 1]
+			for k, outputIndex := range unspents[txhash] {
+				if outputIndex == uint16(b.Transactions[i].UTXOInputs[index].ReferTxOutputIndex) {
+					unspents[txhash][k] = unspents[txhash][unspentLen-1]
 					unspents[txhash] = unspents[txhash][:unspentLen-1]
 					break
 				}
@@ -1011,7 +1022,7 @@ func (bd *ChainStore) addHeader(header *Header) {
 	var sysfee uint64 = 0xFFFFFFFFFFFFFFFF
 	serialization.WriteUint64(w, sysfee)
 	header.Serialize(w)
-	log.Debug(fmt.Sprintf("header data: %x\n", w))
+	//log.Debug(fmt.Sprintf("header data: %x\n", w))
 
 	// PUT VALUE
 	bd.st.BatchPut(headerKey.Bytes(), w.Bytes())
