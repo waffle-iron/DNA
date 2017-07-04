@@ -43,4 +43,5 @@ type ILedgerStore interface {
 	GetUnspent(txid Uint256, index uint16) (*tx.TxOutput, error)
 	ContainsUnspent(txid Uint256, index uint16) (bool, error)
 	IsTxHashDuplicate(tx *tx.Transaction) bool
+	IsBlockInStore(hash Uint256) bool
 }

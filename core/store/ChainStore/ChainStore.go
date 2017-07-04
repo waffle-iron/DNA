@@ -1220,3 +1220,13 @@ func (bd *ChainStore) GetAccount(programHash Uint160) (*account.AccountState, er
 
 	return accountState, nil
 }
+
+func (bd *ChainStore) IsBlockInStore(hash Uint256) bool {
+	prefix := []byte{byte(DATA_Header)}
+	_, err_get := bd.st.Get(append(prefix, hash.ToArray()...))
+	if err_get != nil {
+		return false
+	}
+
+	return true
+}

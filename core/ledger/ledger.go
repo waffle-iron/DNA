@@ -96,8 +96,7 @@ func (l *Ledger) GetBlockWithHash(hash Uint256) (*Block, error) {
 
 //BlockInLedger checks if the block existed in ledger
 func (l *Ledger) BlockInLedger(hash Uint256) bool {
-	bk, _ := l.Store.GetBlock(hash)
-	if bk == nil {
+	if exist := l.Store.IsBlockInStore(hash);exist {
 		return false
 	}
 	return true
