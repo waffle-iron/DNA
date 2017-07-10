@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	. "DNA/common"
+	"DNA/common/log"
 	"DNA/common/serialization"
 	"DNA/core/contract"
 	"DNA/core/contract/program"
@@ -105,11 +106,16 @@ func (tx *Transaction) SerializeUnsigned(w io.Writer) error {
 	//[]*txAttribute
 	err := serialization.WriteVarUint(w, uint64(len(tx.Attributes)))
 	if err != nil {
+		log.Info("Transaction item txAttribute length serialization failed.", err)
 		return NewDetailErr(err, ErrNoCode, "Transaction item txAttribute length serialization failed.")
 	}
 	if len(tx.Attributes) > 0 {
 		for _, attr := range tx.Attributes {
-			attr.Serialize(w)
+			err := attr.Serialize(w)
+			if err != nil {
+				log.Info("Transaction item txAttribute Serialize failed.", err)
+				return NewDetailErr(err, ErrNoCode, "Transaction item txAttribute Serialize failed.")
+			}
 		}
 	}
 	//[]*UTXOInputs
@@ -142,6 +148,7 @@ func (tx *Transaction) Deserialize(r io.Reader) error {
 	// tx deserialize
 	err := tx.DeserializeUnsigned(r)
 	if err != nil {
+		log.Info("transaction Deserialize error=", err)
 		return NewDetailErr(err, ErrNoCode, "transaction Deserialize error")
 	}
 

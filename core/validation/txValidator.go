@@ -16,26 +16,32 @@ import (
 func VerifyTransaction(Tx *tx.Transaction) error {
 
 	if err := CheckDuplicateInput(Tx); err != nil {
+		log.Info("CheckDuplicateInput", err)
 		return err
 	}
 
 	if err := CheckAssetPrecision(Tx); err != nil {
+		log.Info("CheckAssetPrecision", err)
 		return err
 	}
 
 	if err := CheckTransactionBalance(Tx); err != nil {
+		log.Info("CheckTransactionBalance", err)
 		return err
 	}
 
 	if err := CheckAttributeProgram(Tx); err != nil {
+		log.Info("CheckAttributeProgram", err)
 		return err
 	}
 
 	if err := CheckTransactionContracts(Tx); err != nil {
+		log.Info("CheckTransactionContracts", err)
 		return err
 	}
 
 	if err := CheckTransactionPayload(Tx); err != nil {
+		log.Info("CheckTransactionPayload", err)
 		return err
 	}
 
