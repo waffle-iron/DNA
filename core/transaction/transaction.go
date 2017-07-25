@@ -32,6 +32,7 @@ const (
 	Record         TransactionType = 0x81
 	DeployCode     TransactionType = 0xd0
 	DataFile       TransactionType = 0x12
+	DestroyUTXO    TransactionType = 0x18
 )
 
 //Payload define the func for loading the payload data
@@ -202,6 +203,8 @@ func (tx *Transaction) DeserializeUnsignedWithoutType(r io.Reader) error {
 		tx.Payload = new(payload.PrivacyPayload)
 	case DataFile:
 		tx.Payload = new(payload.DataFile)
+	case DestroyUTXO:
+		tx.Payload = new(payload.DestroyUTXO)
 	default:
 		return errors.New("[Transaction],invalide transaction type.")
 	}
@@ -342,6 +345,7 @@ func (tx *Transaction) GetProgramHashes() ([]Uint160, error) {
 			return nil, NewDetailErr(err, ErrNoCode, "[Transaction], GetProgramHashes ToCodeHash failed.")
 		}
 		hashs = append(hashs, astHash)
+	case DestroyUTXO:
 	default:
 	}
 	//remove dupilicated hashes
